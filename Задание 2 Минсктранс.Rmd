@@ -15,12 +15,16 @@
 Проблема в том, что расписание для маршрута 51 не обеспечивает ...
 
 ## Загрузка и подготовка данных для анализа
-**Замечание** для воспроизводимости работы:
-перед загрузкой вкладка "Статистика по троллейбусам" была сохранена в формате csv
-в файле с именем "Data Analyst (Financial) TZ Data_TMO.csv"
-(Выполнено в MS Excel 2010: Файл -> Сохранить как -> CSV (разделители - запятые))
 ```{r}
-#  setwd("d:/Grag/R/R-studio/testwg/")
+# **Замечание** для воспроизводимости работы:
+# перед загрузкой вкладка "Статистика по троллейбусам" была сохранена в формате csv
+# в файле с именем "Data Analyst (Financial) TZ Data_TMO.csv"
+# (Выполнено в MS Excel 2010: Файл -> Сохранить как -> CSV (разделители - запятые))
+```
+
+
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+#  setwd("d:/Grag/R/R-studio/testWG/")
 df <-  read.csv("Data Analyst (Financial) TZ Data_TMO.csv", sep = ";")
 # переименуем столбцы
 names(df) <- c("number","time","pass")
@@ -29,7 +33,7 @@ df$time <- strptime(df$time, format = "%H:%M")
 
 ```
 
-```{r results='hide', warning=FALSE, message=FALSE}
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
 # Подключаем нужные библиотеки
 library("dplyr")
 library("ggplot2")
