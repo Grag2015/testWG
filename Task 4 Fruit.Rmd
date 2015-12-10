@@ -1,0 +1,199 @@
+## Аналитический отчет о продажах фруктов.
+
+выполнил: *Григорий Михолап*  
+дата: *10/12/2015*
+
+```{r setoptions, echo=FALSE, warning=FALSE, message=FALSE}
+# глобальные настройки для chunks
+library(knitr)
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r echo=FALSE, results='hide'}
+# пользовательская ф-я для вывода параметров регрессионной модели
+printlm <- function(model){
+  tempsum <- summary(model)
+  cat("Residual standard error:", format(signif(tempsum$sigma, 
+                                                4)), "on", tempsum$df[2L], "degrees of freedom")
+  cat("\n")
+  cat("Multiple R-squared:  ", round(tempsum$r.squared, digits=4),	"Adjusted R-squared:  ",
+      round(tempsum$adj.r.squared, digits=4))
+  cat("\n")
+  cat("F-statistic: ", round(tempsum$fstatistic[1],2), "on", round(tempsum$fstatistic[2],0), 
+      "and", round(tempsum$fstatistic[3],0), "DF,  p-value:",
+      format.pval(pf(tempsum$fstatistic[1L],tempsum$fstatistic[2L], 
+                     tempsum$fstatistic[3L], lower.tail = FALSE)))
+}
+```
+
+**Задание:**
+
+Составить аналитический отчет о продажах фруктов.
+Отчет должен содержать:
+* Описание алгоритмов и методики исследований 
+* Найденные эффекты с пояснениями 
+* Результаты анализа отчета 
+
+**Выводы кратко:** 
+
+
+**Замечание** по поводу программного кода:
+Программный код, который используется в отчете, в т.ч. и некоторые операции (такие как загрузка и подготовка данных для анализа) не были включены в отчет, при необходимости все эти данные вы можете найти [по ссылке](https://github.com/Grag2015/testWG/blob/master/Task%203%20Advert%20channels.Rmd) 
+```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# **Замечание** для воспроизводимости работы:
+# перед загрузкой вкладка "Продажи фруктов" была сохранена в формате csv
+# в файле с именем "Data Analyst (Financial) TZ Data_fruit.csv"
+# (Выполнено в MS Excel 2010: Файл -> Сохранить как -> CSV (разделители - запятые))
+```
+
+
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+#  setwd("d:/Grag/R/R-studio/testWG/")
+# читаем данные
+df <-  read.csv("Data Analyst (Financial) TZ Data_fruit.csv", sep = ";")
+# переименуем столбцы
+names(df) <- c('Week', 'Iabloko', 'Vishnia',   'Mango', 'Kryzhovnik', 'Kivi', 'Hurma', 'Apelsin', 'Grushi', 'Slivy', 'Abrikosy', 'Percyki', 'Greifrut', 'Mandarin', 'Nektarin',  'Finiki', 'Brusnika', 'Chernika', 'Cliukva')
+
+# недели сделаем упорядоченным фактором (визуальный осмотр показал, что строки расположены в датасете в хронологическом порядке, поэтому корректировок не требуется)
+df$Week <- factor(df$Week, ordered = T)
+
+# добавим дату для корректного отображения на графике (год неважен, мы его не будем использовать)
+date <- vector("character", length = nrow(df))
+date[1] <- "2014-04-23"
+for (i in 2:nrow(df)) {
+    date[i] <- as.character(as.Date(date[1])+7*(i-1))
+}
+df$date <- as.Date(date)
+
+# удалим пробелы и преобразуем все столбцы в числовой формат (кроме недель и дат)
+for (i in 2:(ncol(df)-1)) {
+    df[,i] <- as.numeric(sub(" ","",df[,i]))
+}
+
+# проверим на наличие пропущенных значений в данных
+sapply(df, function(e) sum(is.na(e))) # пропущенных данных нет
+# но визуальный осмотр показал, что Брусника, черника и клюква в начале отчетного периода имеют длительные участки с нулевыми значениями - это похоже на пропущенные значения, поэтому заменим данные значения на NA
+is.na(df$Brusnika[df$Brusnika==0]) <- T
+is.na(df$Chernika[df$Chernika==0]) <- T
+is.na(df$Cliukva[df$Cliukva==0]) <- T
+```
+
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# Подключаем нужные библиотеки
+library("dplyr")
+library("ggplot2")
+library("lattice") 
+library("xtable")
+library("car")
+library(lubridate)
+library(reshape2)
+```
+
+## Разбивка фруктов на группы
+Для понижения размерности данных разобъем фрукты на 3 группы по объему продаж
+```{r}
+# разбиваем на группы вручную
+group1 <- c("Iabloko", "Grushi", "Slivy", "Abrikosy")
+group2 <- c("Vishnia", "Kryzhovnik", "Percyki", "Greifrut", "Nektarin", "Finiki", "Brusnika")
+group3 <- c("Mango", "Kivi", "Hurma", "Mandarin", "Chernika", "Cliukva", "Apelsin")
+
+```
+```{r}
+# "расплавим" таблицу
+dfm <- melt(data=df, id = "date", measure = c(group1, group2, group3))
+names(dfm)[2] <- "fruit"
+names(dfm)[3] <- "saleskg"
+# dfm <- dfm[order(dfm$period),]
+# dfm$period <- as.character(dfm$period)
+```
+
+продажи в динамике по времени
+```{r}
+ggplot(data = dfm[dfm$fruit %in% group1,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+ggplot(data = df, aes(x=date, y=saleskg))+geom_point()
+
+ggplot(data = dfm[dfm$fruit %in% group2,], aes(x=Week, y=saleskg))+geom_point()
+ggplot(data = dfm[dfm$fruit %in% group3,], aes(x=Week, y=saleskg))+geom_point()
+```
+
+## продукты-субституты
+возможно яблоки и груши?
+
+
+```{r}
+    pairs(df[,group1], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+    pairs(df[,group2], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+    pairs(df[,group3], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+ 
+```
+
+
+## Поиск взаимосвязей
+
+```{r}
+summary(df)
+```
+
+
+**Результат:** 
+
+**Вопросы:**  
+
+```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# knit2html('Task 3 Advert channels.Rmd', encoding="UTF-8")
+# browseURL('Task 3 Advert channels.Rmd')
+
+```
+
+
+```{r}
+    panel.density <- function(x, ...) {
+        n.groups <-  1
+        adjust <-  1
+        groups = NULL
+        if (n.groups > 1) {
+            levs <- levels(groups)
+            for (i in 1:n.groups) {
+                xx <- x[levs[i] == groups]
+                dens.x <- try(density(xx, adjust = adjust, na.rm = TRUE), 
+                  silent = TRUE)
+                if (!inherits(dens.x, "try-error")) {
+                  lines(dens.x$x, min(x, na.rm = TRUE) + dens.x$y * 
+                    diff(range(x, na.rm = TRUE))/diff(range(dens.x$y, 
+                    na.rm = TRUE)), col = col[i])
+                }
+                else warning("cannot estimate density for group ", 
+                  levs[i], "\n", dens.x, "\n")
+                rug(xx, col = col[i])
+            }
+        }
+        else {
+            dens.x <- density(x, adjust = adjust, na.rm = TRUE)
+            lines(dens.x$x, min(x, na.rm = TRUE) + dens.x$y * 
+                diff(range(x, na.rm = TRUE))/diff(range(dens.x$y, 
+                na.rm = TRUE)))
+            rug(x)
+        }
+#         if (do.legend) 
+#             legendPlot(position = if (is.null(legend.pos)) 
+#                 "topright"
+#             else legend.pos)
+#         do.legend <<- FALSE
+    }
+panel.cor <- function(x, y, digits=2, prefix="", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- cor(x[!is.na(x*y)], y[!is.na(x*y)])
+    txt <- format(c(r, 0.123456789), digits=digits)[1]
+    txt <- paste(prefix, txt, sep="")
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * max(abs(r), 0.25))
+}
+
+panel.smooth2 <- function(x, y){
+panel.smooth(x, y,iter = 1)
+}
+
+```
+
