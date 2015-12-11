@@ -6,7 +6,7 @@
 ```{r setoptions, echo=FALSE, warning=FALSE, message=FALSE}
 # глобальные настройки для chunks
 library(knitr)
-opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE, fig.width=10,  fig.height=8)
 ```
 
 ```{r echo=FALSE, results='hide'}
@@ -24,129 +24,7 @@ printlm <- function(model){
       format.pval(pf(tempsum$fstatistic[1L],tempsum$fstatistic[2L], 
                      tempsum$fstatistic[3L], lower.tail = FALSE)))
 }
-```
-
-**Задание:**
-
-Составить аналитический отчет о продажах фруктов.
-Отчет должен содержать:
-* Описание алгоритмов и методики исследований 
-* Найденные эффекты с пояснениями 
-* Результаты анализа отчета 
-
-**Выводы кратко:** 
-
-
-**Замечание** по поводу программного кода:
-Программный код, который используется в отчете, в т.ч. и некоторые операции (такие как загрузка и подготовка данных для анализа) не были включены в отчет, при необходимости все эти данные вы можете найти [по ссылке](https://github.com/Grag2015/testWG/blob/master/Task%203%20Advert%20channels.Rmd) 
-```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
-# **Замечание** для воспроизводимости работы:
-# перед загрузкой вкладка "Продажи фруктов" была сохранена в формате csv
-# в файле с именем "Data Analyst (Financial) TZ Data_fruit.csv"
-# (Выполнено в MS Excel 2010: Файл -> Сохранить как -> CSV (разделители - запятые))
-```
-
-
-```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
-#  setwd("d:/Grag/R/R-studio/testWG/")
-# читаем данные
-df <-  read.csv("Data Analyst (Financial) TZ Data_fruit.csv", sep = ";")
-# переименуем столбцы
-names(df) <- c('Week', 'Iabloko', 'Vishnia',   'Mango', 'Kryzhovnik', 'Kivi', 'Hurma', 'Apelsin', 'Grushi', 'Slivy', 'Abrikosy', 'Percyki', 'Greifrut', 'Mandarin', 'Nektarin',  'Finiki', 'Brusnika', 'Chernika', 'Cliukva')
-
-# недели сделаем упорядоченным фактором (визуальный осмотр показал, что строки расположены в датасете в хронологическом порядке, поэтому корректировок не требуется)
-df$Week <- factor(df$Week, ordered = T)
-
-# добавим дату для корректного отображения на графике (год неважен, мы его не будем использовать)
-date <- vector("character", length = nrow(df))
-date[1] <- "2014-04-23"
-for (i in 2:nrow(df)) {
-    date[i] <- as.character(as.Date(date[1])+7*(i-1))
-}
-df$date <- as.Date(date)
-
-# удалим пробелы и преобразуем все столбцы в числовой формат (кроме недель и дат)
-for (i in 2:(ncol(df)-1)) {
-    df[,i] <- as.numeric(sub(" ","",df[,i]))
-}
-
-# проверим на наличие пропущенных значений в данных
-sapply(df, function(e) sum(is.na(e))) # пропущенных данных нет
-# но визуальный осмотр показал, что Брусника, черника и клюква в начале отчетного периода имеют длительные участки с нулевыми значениями - это похоже на пропущенные значения, поэтому заменим данные значения на NA
-is.na(df$Brusnika[df$Brusnika==0]) <- T
-is.na(df$Chernika[df$Chernika==0]) <- T
-is.na(df$Cliukva[df$Cliukva==0]) <- T
-```
-
-```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
-# Подключаем нужные библиотеки
-library("dplyr")
-library("ggplot2")
-library("lattice") 
-library("xtable")
-library("car")
-library(lubridate)
-library(reshape2)
-```
-
-## Разбивка фруктов на группы
-Для понижения размерности данных разобъем фрукты на 3 группы по объему продаж
-```{r}
-# разбиваем на группы вручную
-group1 <- c("Iabloko", "Grushi", "Slivy", "Abrikosy")
-group2 <- c("Vishnia", "Kryzhovnik", "Percyki", "Greifrut", "Nektarin", "Finiki", "Brusnika")
-group3 <- c("Mango", "Kivi", "Hurma", "Mandarin", "Chernika", "Cliukva", "Apelsin")
-
-```
-```{r}
-# "расплавим" таблицу
-dfm <- melt(data=df, id = "date", measure = c(group1, group2, group3))
-names(dfm)[2] <- "fruit"
-names(dfm)[3] <- "saleskg"
-# dfm <- dfm[order(dfm$period),]
-# dfm$period <- as.character(dfm$period)
-```
-
-продажи в динамике по времени
-```{r}
-ggplot(data = dfm[dfm$fruit %in% group1,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
-ggplot(data = df, aes(x=date, y=saleskg))+geom_point()
-
-ggplot(data = dfm[dfm$fruit %in% group2,], aes(x=Week, y=saleskg))+geom_point()
-ggplot(data = dfm[dfm$fruit %in% group3,], aes(x=Week, y=saleskg))+geom_point()
-```
-
-## продукты-субституты
-возможно яблоки и груши?
-
-
-```{r}
-    pairs(df[,group1], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
-    pairs(df[,group2], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
-    pairs(df[,group3], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
- 
-```
-
-
-## Поиск взаимосвязей
-
-```{r}
-summary(df)
-```
-
-
-**Результат:** 
-
-**Вопросы:**  
-
-```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
-# knit2html('Task 3 Advert channels.Rmd', encoding="UTF-8")
-# browseURL('Task 3 Advert channels.Rmd')
-
-```
-
-
-```{r}
+# пользовательские функции для график попарных корреляций
     panel.density <- function(x, ...) {
         n.groups <-  1
         adjust <-  1
@@ -195,5 +73,270 @@ panel.smooth2 <- function(x, y){
 panel.smooth(x, y,iter = 1)
 }
 
+printcor <- function(df, level=0.5){
+    # на входе дф с числовыми столбцами
+    for (i in 1:(ncol(df)-1)){
+        for (j in (i+1):ncol(df)){
+            x <- df[,i]
+            y <- df[,j]
+            t <-cor(x[!is.na(x*y)], y[!is.na(x*y)]) 
+            if (abs(t)>=level) {
+                print(paste0(names(df)[i]," * ", names(df)[j], " = ", round(t,2)))
+            }
+        }
+    }
+}
 ```
+
+**Задание:**
+
+Составить аналитический отчет о продажах фруктов.
+Отчет должен содержать:
+
+1. Описание алгоритмов и методики исследований 
+2. Найденные эффекты с пояснениями 
+3. Результаты анализа отчета 
+
+**Выводы кратко:** 
+
+## содержание/схема работы
+1. работа с размерностью
+2. анализ взаимосвязей
+3. анализ сезонности (анализ относительных значений)
+4. анализ продаж по сезонам (анализ абсолютных значений)
+
+**Замечание** по поводу программного кода:
+Программный код, который используется в отчете, в т.ч. и некоторые операции (такие как загрузка и подготовка данных для анализа) не были включены в отчет, при необходимости все эти данные вы можете найти [по ссылке](https://github.com/Grag2015/testWG/blob/master/Task%203%20Advert%20channels.Rmd) 
+
+```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+## загрузка и подготовка данных
+
+# **Замечание** для воспроизводимости работы:
+# перед загрузкой вкладка "Продажи фруктов" была сохранена в формате csv
+# в файле с именем "Data Analyst (Financial) TZ Data_fruit.csv"
+# (Выполнено в MS Excel 2010: Файл -> Сохранить как -> CSV (разделители - запятые))
+```
+
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+#  setwd("d:/Grag/R/R-studio/testWG/")
+# читаем данные
+df <-  read.csv("Data Analyst (Financial) TZ Data_fruit.csv", sep = ";")
+namesrus <- names(df[,-1])
+# переименуем столбцы
+nameslat <-  c('Iabloko', 'Vishnia',   'Mango', 'Kryzhovnik', 'Kivi', 'Hurma', 'Apelsin', 'Grushi', 'Slivy', 'Abrikosy', 'Percyki', 'Greifrut', 'Mandarin', 'Nektarin',  'Finiki', 'Brusnika', 'Chernika', 'Cliukva')
+names(df) <- c('Week', nameslat) 
+
+# недели сделаем упорядоченным фактором (визуальный осмотр показал, что строки расположены в датасете в хронологическом порядке, поэтому корректировок не требуется)
+df$Week <- factor(df$Week, ordered = T)
+
+# добавим дату для корректного отображения на графике (год неважен, мы его не будем использовать)
+date <- vector("character", length = nrow(df))
+date[1] <- "2014-04-23"
+for (i in 2:nrow(df)) {
+    date[i] <- as.character(as.Date(date[1])+7*(i-1))
+}
+df$date <- as.Date(date)
+
+# удалим пробелы и преобразуем все столбцы в числовой формат (кроме недель и дат)
+for (i in 2:(ncol(df)-1)) {
+    df[,i] <- as.numeric(sub(" ","",df[,i]))
+}
+
+# проверим на наличие пропущенных значений в данных
+sapply(df, function(e) sum(is.na(e))) # пропущенных данных нет
+# но визуальный осмотр показал, что Брусника, черника и клюква в начале отчетного периода имеют длительные участки с нулевыми значениями - это похоже на пропущенные значения, поэтому заменим данные значения на NA
+is.na(df$Brusnika[df$Brusnika==0]) <- T
+is.na(df$Chernika[df$Chernika==0]) <- T
+is.na(df$Cliukva[df$Cliukva==0]) <- T
+```
+
+```{r  echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# Подключаем нужные библиотеки
+library("dplyr")
+library("ggplot2")
+library("lattice") 
+library("xtable")
+library("car")
+library(lubridate)
+library(reshape2)
+```
+```{r}
+# "расплавим" таблицу
+dfm <- melt(data=df, id = "date", measure.vars = c(2:19))
+names(dfm)[2] <- "fruit"
+names(dfm)[3] <- "saleskg"
+# dfm <- dfm[order(dfm$period),]
+# dfm$period <- as.character(dfm$period)
+```
+
+## Предварительная обработка данных
+Анализ пропущенных значений: пропущенных значений в данных нет, но визуальный осмотр показал, что Брусника, черника и клюква в начале отчетного периода имеют длительные участки с нулевыми значениями - это похоже на пропущенные значения, поэтому данные значения заменены на NA
+
+## Разбивка фруктов на группы
+Для понижения размерности данных разобъем фрукты на 3 группы по объему продаж
+```{r}
+# разбиваем на группы вручную
+group1 <- c("Iabloko", "Grushi", "Slivy", "Abrikosy")
+group2 <- c("Vishnia", "Kryzhovnik", "Percyki", "Greifrut", "Nektarin", "Finiki", "Brusnika")
+group3 <- c("Mango", "Kivi", "Hurma", "Mandarin", "Chernika", "Cliukva", "Apelsin")
+
+```
+
+
+## Общие показатели
+```{r}
+# подготовка таблицы с агрегированными показателями по наименованиям фруктов
+t <- group_by(.data = dfm, fruit)
+# показатели пересчитаем в тоннах
+dft <- summarise(t, sum=sum(saleskg, na.rm = T), mean=mean(saleskg, na.rm = T), varrel=sd(saleskg, na.rm = T)/mean(saleskg, na.rm = T))
+
+# отдельная таблица для отчета
+dft2 <- summarise(t, "Объем продаж"=sum(saleskg, na.rm = T), "Средний в неделю"=round(mean(saleskg, na.rm = T)), "Отклонение от среднего"=round(sd(saleskg, na.rm = T),2))
+
+# создание временной переменной для маппинга имен на кириллице и латинице
+namesrus2 <- namesrus
+for (i in 1:length(namesrus2)) {
+    namesrus2[i] <- namesrus[which(nameslat==dft2$fruit[i], arr.ind = T)]
+}
+dft2$fruit <- namesrus2
+names(dft2)[1] <- "Фрукт"
+# сортировка по убыванию объема продаж
+dft2 <- dft2[order(dft2$`Объем продаж`, decreasing = T),]
+print(dft2)
+```
+
+визуализация
+
+```{r}
+namesrus2 <- namesrus
+for (i in 1:length(namesrus2)) {
+    namesrus2[i] <- namesrus[which(nameslat==dft$fruit[i], arr.ind = T)]
+}
+# ручная корректировка (сливаются Грейпфрут и Персики на графике)
+dft[12,4] <- dft[12,4]+0.01
+
+ggplot(data = dft, aes(x=(mean)^0.2, y=varrel, col=fruit, size=(sum)^0.1))+geom_point()+geom_vline(xintercept = 6, colour="red", linetype = "longdash", size=0.5)+geom_hline(yintercept = 0.6, colour="red", linetype = "longdash", size=0.5)+annotate("text", label = paste0(namesrus2, " - ", round(dft$sum/1000)," т"), x = (dft$mean)^0.20, y = dft$varrel, size = 3, colour = "#2e3a23",  hjust=-0.1)+
+    xlab("Средние продажи в неделю (логариф. шкала)")+
+    ylab("Отклонение от среднего (коэффициент вариации)")+
+    labs(title="Основные параметры продаж")+xlim(2,10)+ylim(0.3,1)+
+    scale_size_continuous(breaks=NULL)+
+    scale_color_discrete(breaks=NULL)
+```
+
+мы видим, что яблоки и абрикосы потребляются в большом объеме и продажи осуществляются более равномерно по сравнению с остальными фруктам. Груши и Сливы также продаются очень хорошо, но у этих фруктов выше коэффициент вариации и выше колебания объемов продаж (что может быть важно знать для дистрибуции данных продуктов, при этом спрогнозировать данные колебания сложно, и *одним из решений может быть наличие достаточно большого хранилища в местах продаж*)
+
+## продажи в динамике по времени (по группам)
+```{r}
+ggplot(data = dfm[dfm$fruit %in% group1,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+ggplot(data = dfm[dfm$fruit %in% group2,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+ggplot(data = dfm[dfm$fruit %in% group3,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+
+
+```
+
+## Декомпозиция временного ряда
+```{r}
+# plot(decompose(df[,c(20,2)]))
+# dfts <- ts(data=df[,c(10)], start = 2001, frequency = 1)
+# 
+# plot(decompose(dfts))
+# stl(dfts)
+# tt <- bfastts(data = df[,10], dates=df[,20])
+# bfast(Yt = tt)
+
+```
+ может быть описан аддитивной моделью, поскольку сезонные колебания примерно постоянны с течением времени и, кажется, не зависят от уровня временного ряда, и случайные колебания также примерно постоянны по значению в течение долгого времени.
+
+временной ряд - стационарый, периодический/неперодический
+
+Глянул Яблоки+Груши в сумме, особо ровней не получилось
+```{r}
+ggplot(data = df, aes(x=date, y=Iabloko+Grushi))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+```
+
+## продукты-субституты
+возможно яблоки и груши?
+
+
+```{r}
+    pairs(df[,group1], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+    pairs(df[,group2], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+    pairs(df[,group3], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+
+    tt <- cor(df[,2], df[,3]) 
+    pairs(df[,c("Brusnika", "Cliukva")], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+```
+
+Рассчитаем коэффициенты попарных корреляций и выведем пары со значением корреляции не ниже 0.7
+```{r}
+    printcor(df[,2:19], level = 0.7)
+```
+
+Как видим есть тройка с очень сильной корреляцией - Нектарин, Черника, Клюква. Посмотрим на диаграмме рассеивания на характер зависимости.
+```{r}
+    pairs(df[,c("Nektarin", "Chernika", "Cliukva")], diag.panel=panel.density, upper.panel=panel.cor, lower.panel=panel.smooth2)
+
+```
+Из диаграммы видно, что зависимость похожа на линейную. Предварительно, можем объединить эти фрукты в группу и рассматривать при анализе один из фруктов как представителя группы
+
+## сезонность
+для оценки сезонности нормализуем данные (делением на матожидание)
+```{r}
+dfn <- df
+# нормализуем (делением на матожидание)
+for (i in 2:(ncol(df)-1)) {
+    dfn[,i] <- df[,i]/mean(df[,i],na.rm = T)
+}
+# "расплавим" таблицу
+dfnm <- melt(data=dfn, id = "date", measure = c(group1, group2, group3))
+names(dfnm)[2] <- "fruit"
+names(dfnm)[3] <- "saleskg"
+```
+
+Посмотрим на нормированные данные продаж во временной динамике
+```{r}
+ggplot(data = dfnm, aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+```
+есть пару точек - в конце декабря и в феврале, которые похожу на всплески, а так в целом все достаточно ровно. тут конечно еще вопрос к методологии.
+
+ВАЖНО - также для оценки сезонности можно использовать ф-ю для разложения временных рядов
+
+## Продолжаем работу с размерностью
+```{r}
+x <- as.matrix(df[,2:16])
+par(mar = rep(0.2, 4))
+heatmap(x)
+class(x)
+
+```
+
+
+к-среднее кластеризация
+```{r}
+kmeansObj <- kmeans(t(df[,2:16]), centers = 5)
+kmeansObj$cluster
+```
+
+## Дисперсионный анализ зависимости потребления от времени года
+
+
+## Поиск взаимосвязей
+
+```{r}
+summary(df[,2:19])
+```
+
+
+**Результат:** 
+
+**Вопросы:**  
+
+```{r echo=FALSE, results='hide', warning=FALSE, message=FALSE}
+# knit2html('Task 3 Advert channels.Rmd', encoding="UTF-8")
+# browseURL('Task 3 Advert channels.Rmd')
+
+```
+
+
+
 
