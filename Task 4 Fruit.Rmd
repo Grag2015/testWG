@@ -86,6 +86,17 @@ printcor <- function(df, level=0.5){
         }
     }
 }
+
+# на входе вектор дат, на выходе вектор сезонов фактор
+season <- function(x){
+  y <- month(x) # month(x) from package  lubridate
+  out <- character(length = length(x))
+  out[y>2 & y<6] <- "spring"
+  out[y>5 & y<9] <- "summer"
+  out[y>8 & y<12] <- "autumn"
+  out[y>11 | y<3] <- "winter"
+  out
+}
 ```
 
 **Задание:**
@@ -159,6 +170,7 @@ library("xtable")
 library("car")
 library(lubridate)
 library(reshape2)
+library(scales)
 ```
 ```{r}
 # "расплавим" таблицу
@@ -226,13 +238,66 @@ ggplot(data = dft, aes(x=(mean)^0.2, y=varrel, col=fruit, size=(sum)^0.1))+geom_
 мы видим, что яблоки и абрикосы потребляются в большом объеме и продажи осуществляются более равномерно по сравнению с остальными фруктам. Груши и Сливы также продаются очень хорошо, но у этих фруктов выше коэффициент вариации и выше колебания объемов продаж (что может быть важно знать для дистрибуции данных продуктов, при этом спрогнозировать данные колебания сложно, и *одним из решений может быть наличие достаточно большого хранилища в местах продаж*)
 
 ## продажи в динамике по времени (по группам)
-```{r}
-ggplot(data = dfm[dfm$fruit %in% group1,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
-ggplot(data = dfm[dfm$fruit %in% group2,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
-ggplot(data = dfm[dfm$fruit %in% group3,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")
+```{r fig.width=10,  fig.height=4}
+
+ggplot(data = dfm[dfm$fruit %in% group1,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "months", labels = date_format("%m"))+
+    xlab("месяц")+
+    ylab("еженедельные продажи (кг)")+
+    labs(title="Группа 1")+
+    scale_color_discrete(name="Фрукт")
+ggplot(data = dfm[dfm$fruit %in% group2,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")+
+    xlab("месяц")+
+    ylab("еженедельные продажи (кг)")+
+    labs(title="Группа 2")+
+    scale_color_discrete(name="Фрукт")+ylim(0,7500)
+ggplot(data = dfm[dfm$fruit %in% group3,], aes(x=date, y=saleskg, col=fruit, group=fruit))+geom_point()+geom_line()+ scale_x_date(breaks = "1 month", minor_breaks = "1 week")+
+    xlab("месяц")+
+    ylab("еженедельные продажи (кг)")+
+    labs(title="Группа 3")+
+    scale_color_discrete(name="Фрукт")+ylim(0,1000)
+
 
 
 ```
+
+## Анализ зависимости потребления от времени года
+```{r}
+# добавляем время года (время года берем по первому дню недели)
+dfm$season <- season(dfm$date) 
+```
+проверим влияние на уровень продаж времени года. Для этого проведем однофакторный дисперсионный анализ для каждого фрукта (используем функцию `aov {stats}`). В приведенном списке фрукты, для которых подтверждена зависимость уровня еженедельных продаж от сезона. (т.е. те, для которых тест Фишера показал p-value<0.05)
+Замечание: при этом не были строго проверены условия однофакторного дисперсионного анализа - значения зависимой переменной распределены нормально и имеют одинаковую дисперсию в каждой группе.
+
+```{r}
+# для каждого фрукта выполняем анализ с помощью ф-и aov
+for (fname in nameslat) {
+    tt <- dfm[dfm$fruit==fname,]
+    fit <- aov(saleskg~season, data = tt)
+    tt2 <- summary(fit)
+    if(tt2[[1]]$`Pr(>F)`[1]<0.05){
+        print(fname)
+        TukeyHSD(fit)
+    }
+}
+
+
+```
+Рассмотрим более подробно различия продаж от сезона на примере Апельсина. Для анализа воспользуемся функцией `TukeyHSD {stats}`, которая позволяет провести тест на попарные различия между средними значениями для всех сезонов.
+```{r}
+    tt <- dfm[dfm$fruit=="Apelsin",]
+    fit <- aov(saleskg~season, data = tt)
+    tt2 <- TukeyHSD(fit)
+    print(xtable(tt2), type = 'html')
+```
+
+Как видно из результатов попарных сравнений, значимые различия наблюдаются в парах Зима-Весна и Зима-Осень. При этом в среднем зимой продажи выше на 224 и 254 кг в неделю по сравнени с весной и летом соответственно. На графике это выглядит так:
+
+```{r}
+par(las=1)
+par(mar=c(5,8,4,2))
+plot(TukeyHSD(fit))
+```
+
 
 ## Декомпозиция временного ряда
 ```{r}
@@ -317,7 +382,7 @@ kmeansObj <- kmeans(t(df[,2:16]), centers = 5)
 kmeansObj$cluster
 ```
 
-## Дисперсионный анализ зависимости потребления от времени года
+
 
 
 ## Поиск взаимосвязей
