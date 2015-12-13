@@ -171,6 +171,7 @@ library("car")
 library(lubridate)
 library(reshape2)
 library(scales)
+library(psych)
 ```
 ```{r}
 # "расплавим" таблицу
@@ -192,6 +193,11 @@ group1 <- c("Iabloko", "Grushi", "Slivy", "Abrikosy")
 group2 <- c("Vishnia", "Kryzhovnik", "Percyki", "Greifrut", "Nektarin", "Finiki", "Brusnika")
 group3 <- c("Mango", "Kivi", "Hurma", "Mandarin", "Chernika", "Cliukva", "Apelsin")
 
+```
+понижение размерности методом главных компонент
+```{r}
+
+principal(df[2:16], nfactors = 5)
 ```
 
 
