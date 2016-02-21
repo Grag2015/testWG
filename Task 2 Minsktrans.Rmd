@@ -82,10 +82,10 @@ for (i in 1:6) {
 Среднее кол-во пассажиров (чел) | `r round(mean(df$pass, na.rm=T),0)` |  `r round(mean(df[df$number==27,]$pass, na.rm=T),0)` | `r round(mean(df[df$number==31,]$pass, na.rm=T),2)`  | `r round(mean(df[df$number==51,]$pass, na.rm=T),0)`
 Суммарное кол-во пассажиров (чел) | `r round(sum(df$pass, na.rm=T),2)` |  `r round(sum(df[df$number==27,]$pass, na.rm=T),2)` | `r round(sum(df[df$number==31,]$pass, na.rm=T),2)`  | `r round(sum(df[df$number==51,]$pass, na.rm=T),2)`
 
-Комментарии к таблице - в среднем интервал ожидания троллейбуса на станции "Дружная" в период с 20:00 до 21:00 составляет 5 минут, при этом в реальности троллейбусы по ряду причин не всегда зависящих от водителя, могут отклониться от среднего, т.е. прибыть раньше либо позже. Среднее значение такого отклонения составляет примерно 1.7 минуты (см. 'Отклонение от среднего (мин)'), 
+Комментарии к таблице - в среднем интервал ожидания троллейбуса на станции "Дружная" в период с 20:00 до 21:00 составляет 5 минут, при этом в реальности троллейбусы по ряду причин не всегда зависящих от водителя, могут отклониться от среднего, т.е. прибыть раньше либо позже. Среднее значение такого отклонения составляет примерно 1.7 минуты (см. 'Отклонение от среднего (мин)').
 Высокое значение данного показателя говорит о частых и значительных отклонениях от расписания, что влечет дополнительные сложности для пассажиров, которым становится тяжелей "словить" троллейбус, и 
 является причиной неравномерной загрузки транспорта. По этой причине хочется отметить маршрут №51, для которого данный параметр гораздо выше среднего по станции (к этому вопросу мы еще вернемся чуть ниже), при этом мы видим значительную задержку в движении - троллейбуса ждали `r round(max(df[df$number==51,]$interval, na.rm=T),2)` минут. (ниже мы еще вернемся к этой задержке)
-
+  
 *Замечание*: для средних интервалов движения были выполнены тесты Стьюдента на значимость различий - все различия значимы (детали см. в коде отчета)
 ```{r results='hide'}
 t1 <- df[df$number==31,"interval"]
@@ -111,7 +111,7 @@ sumpass <- tapply(df$pass, factor(df$number), function(e) sum(e, na.rm = T))
 df2 <- data.frame(interval=averinter, pass=averpass, sumpass=sumpass, number=names(sumpass))
 ```
 
-```{r  fig.width=10,  fig.height=8}
+```{r  fig.width=9,  fig.height=5}
 ggplot(data=df2, aes(x=interval, y=pass, size=factor(sumpass), col=factor(number)))+geom_point(size=c(12,20,9))+xlim(0,10)+ylim(5,20)+geom_vline(xintercept = mean(df$interval, na.rm = T), colour="red", linetype = "longdash", size=0.5)+geom_hline(yintercept = mean(df$pass, na.rm = T), colour="red", linetype = "longdash", size=0.5)+annotate("text", label = paste0(df2$sumpass," пасс/час"), x = df2$interval, y = df2$pass, size = 3, colour = "#2e3a23",  hjust=-0.2)+
     xlab("Средний интервал движения(мин)")+
     ylab("Среднее количество пассажиров (чел)")+
@@ -125,7 +125,7 @@ ggplot(data=df2, aes(x=interval, y=pass, size=factor(sumpass), col=factor(number
 
 Посмотрим на пассажиропоток в динамике по времени
 
-```{r  fig.width=10,  fig.height=8}
+```{r  fig.width=9,  fig.height=5}
 ggplot(data = df, aes(x=time, y=pass))+geom_line(aes(col=factor(number)))+geom_point(aes(col=factor(number)))+xlab("Время прибытия троллейбуса")+
     ylab("Количество пассажиров (чел)")+
     labs(title="Хронология пассажиропотока в разбивке по маршрутам")+
@@ -136,7 +136,7 @@ ggplot(data = df, aes(x=time, y=pass))+geom_line(aes(col=factor(number)))+geom_p
 1. Можно отметить, что в рассматриваемом промежутке пассажиропоток значительно падает. При это на маршруте №51, это падение не такое стремительное.  
 2. На маршруте №51 мы видим в райне 20:55 значительный всплеск ожидающих, сопоставив с интервалами движения в течение часа (см. график ниже), мы видим, что этот пик приходится на ту максимульную задержку в `r round(max(df[df$number==51,]$interval, na.rm=T),2)` минут, которую мы обнаружили выше. Также стоит обратить внимание, что возможно в этом время прибывает на вокзал вечерняя электричка, что также влечет дополнительный прирост пассажиров (даже без задержек в движении троллейбусов) и это надо, по возможности, учитывать при составлении расписания.
 
-```{r  fig.width=10,  fig.height=8}
+```{r  fig.width=9,  fig.height=5}
 ggplot(data=df, aes(x=time, y=interval, fill=factor(number)), col="white")+geom_histogram(stat="identity", position="dodge")+xlab("Время прибытия троллейбуса")+
     ylab("Средний интервал ожидания троллейбуса (мин)")+
     labs(title="Хронология прибытия и интервалы ожидания")+
@@ -152,13 +152,14 @@ ggplot(data=df, aes(x=time, y=interval, fill=factor(number)), col="white")+geom_
 Среднее время ожидания (пасс/мин) | `r round(mean(df$passmin, na.rm=T),0)` |  `r round(mean(df[df$number==27,]$passmin, na.rm=T),0)` | `r round(mean(df[df$number==31,]$passmin, na.rm=T),2)`  | `r round(mean(df[df$number==51,]$passmin, na.rm=T),0)`
 Суммарное время ожидания (пасс/мин) | `r round(sum(df$passmin, na.rm=T),2)` |  `r round(sum(df[df$number==27,]$passmin, na.rm=T),2)` | `r round(sum(df[df$number==31,]$passmin, na.rm=T),2)`  | `r round(sum(df[df$number==51,]$passmin, na.rm=T),2)`
 
-```{r fig.width=10,  fig.height=8}
+```{r fig.width=9,  fig.height=5}
 ggplot(data = df, aes(x=time, y=passmin))+geom_line(aes(col=factor(number)))+geom_point(aes(col=factor(number)))+xlab("Время прибытия троллейбуса")+
     ylab("Время ожидания в пассажиро-минутах")+
     labs(title="Время ожидания по маршрутам в пассажиро-минутах")+
     scale_color_discrete(name="Маршрут")
 
 ```
+
 Как видим по показателю Среднее время ожидания (пасс-мин) маршрут №51 опережает остальные, это наталкивает на предположение о том, что на этот маршрут (по причине ожидания или отклонения от графика) будут жаловаться чаще, чем на остальные. 
 
 ## Резюме
@@ -167,3 +168,6 @@ ggplot(data = df, aes(x=time, y=passmin))+geom_line(aes(col=factor(number)))+geo
 > найти причину жалобы, 
 
 Причина жалобы видимо состоит, в том, что в районе 20:55 маршрут №51 значительно (на 4 минуты) отклонился от среднего интервала (люди ждали 11 минут вместо привычных 7) и на остановке собралось почти 20 человек (вместо обычных для второй половины часа 10 человек)
+   
+      
+________________
